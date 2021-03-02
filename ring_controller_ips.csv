@@ -1,12 +1,12 @@
-﻿IP,Username,Password,Type,Direction,ConnectionToNextRadio
-192.168.0.201,admin,Admin123,BH,CW,rf
-192.168.0.202,admin,Admin123,BH,CW,eth2
-192.168.0.203,admin,Admin123,BH,CW,rpl
-192.168.0.208,admin,Admin123,BH,ACW,rf
-192.168.0.207,admin,Admin123,BH,ACW,eth2
-192.168.0.206,admin,Admin123,BH,ACW,rf
-192.168.0.205,admin,Admin123,BH,ACW,eth2
-192.168.0.204,admin,Admin123,BH,ACW,rpl
-192.168.0.117,,,Client,,
-192.168.0.128,,,Client,,
-192.168.0.116,,,Client,,
+﻿IP,Username,Password,Type,Direction,ConnectionToNextRadio,ProtectionCommand
+192.168.0.201,admin,Admin123,BH,CW,rf,set rf mode alignment
+192.168.0.202,admin,Admin123,BH,CW,eth2,set eth eth2 admin down
+192.168.0.203,admin,Admin123,BH,CW,rpl,set rf frequency 2000 84625
+192.168.0.208,admin,Admin123,BH,ACW,rf,set rf mode alignment
+192.168.0.207,admin,Admin123,BH,ACW,eth2,set eth eth2 admin down
+192.168.0.206,admin,Admin123,BH,ACW,rf,set rf mode alignment
+192.168.0.205,admin,Admin123,BH,ACW,eth2,set eth eth2 admin down
+192.168.0.204,admin,Admin123,BH,ACW,rpl,set rf frequency 2000 72125
+192.168.0.117,,,Client,,,
+192.168.0.128,,,Client,,,
+192.168.0.116,,,Client,,,
