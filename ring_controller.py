@@ -65,13 +65,16 @@ def find_last_connected_ip(unconnected_ip, all_ips_ordered):
 
 def activate_rpl(unit):
     rpl_ip = unit['IP'].values[0]
-    print(f'Activating RPL of {rpl_ip}')
+    command = unit['ProtectionCommand'].values[0]
+    print(f'Activating RPL on {rpl_ip}')
+    print(f'Executing: {command}')
     return
 
 
 def disconnect_last_connected_unit(unit):
     # check the connection type of the last connected unit
     connection_to_the_next_unit = unit['ConnectionToNextRadio'].values[0]
+    command = unit['ProtectionCommand'].values[0]
     last_connected_ip = unit['IP'].values[0]
 
     if connection_to_the_next_unit == 'rf':
@@ -79,6 +82,8 @@ def disconnect_last_connected_unit(unit):
     else:
         print(
             f'Connection to the next unit is Ethernet. Need to turn down {connection_to_the_next_unit} of {last_connected_ip}')
+
+    print(f'Executing: {command}')
     return
 
 
