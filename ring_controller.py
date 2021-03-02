@@ -121,14 +121,21 @@ if __name__ == "__main__":
             print(not_connected_ips)
 
             # check the unconnected side
-            if not_connected_ips[0] in cw_ips:
+            if (not_connected_ips["Direction"] == 'CW').all():
                 unconnected_direction = 'CW'
+                # if the disconnect is on the CW side, the RPL should be activated on the ACW side
+                rpl_side = 'ACW'
                 first_unconnected_ip = find_first_unconnected_ip(not_connected_ips, cw_ips)
                 last_connected_ip = find_last_connected_ip(first_unconnected_ip, cw_ips)
-            else:
+            elif (not_connected_ips["Direction"] == 'ACW').all():
                 unconnected_direction = 'ACW'
+                # if the disconnect is on the ACW side, the RPL should be activated on the CW side
+                rpl_side = 'CW'
                 first_unconnected_ip = find_first_unconnected_ip(not_connected_ips, acw_ips)
                 last_connected_ip = find_last_connected_ip(first_unconnected_ip, acw_ips)
+            else:
+                print(f'Units disconnected on both directions. Exiting...')
+                break
 
             print(f'Unconnected direction: {unconnected_direction}')
             print(f'First unconnected IP: {first_unconnected_ip}')
@@ -137,17 +144,10 @@ if __name__ == "__main__":
             disconnect_last_connected_unit(units_in_ring[units_in_ring["IP"] == last_connected_ip])
 
             # activate RPL
-            # if the disconnect is on the ACW side, the RPL should be activated on the CW side
-            if unconnected_direction == 'ACW':
-                rpl_side = 'CW'
-            else:
-                rpl_side = 'ACW'
-
             rpl_activation_unit = units_in_ring[
                 (units_in_ring["ConnectionToNextRadio"] == 'rpl') &
                 (units_in_ring["Direction"] == rpl_side)
             ]
-
             activate_rpl(rpl_activation_unit)
 
             # exit if a fault was detected
