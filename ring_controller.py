@@ -71,6 +71,7 @@ if __name__ == "__main__":
     PING_TIMEOUT_SEC = 3
     PING_PACKET_SIZE_BYTES = 1
     DELAY_BETWEEN_PING_TEST_SEC = 5
+    N_CONSECUTIVE_PINGS_LOST = 4
 
     UNITS_FILENAME = r'ring_controller_ips.csv'
     units_in_ring = pd.read_csv(UNITS_FILENAME)
@@ -89,7 +90,16 @@ if __name__ == "__main__":
             print('All units alive.')
 
         else:
+            print('At least one unit is disconnected!')
             # at least one IP is not connected
+            # wait until there are N_CONSECUTIVE_PINGS_LOST
+            for i in range(N_CONSECUTIVE_PINGS_LOST):
+                all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
+                if all_alive:
+                    print('All units reconnected. Back to normal.')
+                    continue
+
+            print(f'{N_CONSECUTIVE_PINGS_LOST} pings lost. Need to activate RPL.')
             not_connected_ips = [ip for ip, is_alive in results if not is_alive]
             print('Not connected IPs:')
             print(not_connected_ips)
