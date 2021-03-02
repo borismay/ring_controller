@@ -55,6 +55,17 @@ def tests():
     return
 
 
+def find_first_unconnected_ip(unconnected_ips, all_ips_ordered):
+    for ip in all_ips_ordered:
+        if ip in unconnected_ips:
+            return ip
+
+
+def find_last_connected_ip(unconnected_ip, all_ips_ordered):
+    last_connected_index = all_ips_ordered.index(unconnected_ip) - 1
+    return all_ips_ordered[last_connected_index]
+
+
 if __name__ == "__main__":
     PING_PACKETS = 1
     PING_TIMEOUT_SEC = 3
@@ -65,6 +76,9 @@ if __name__ == "__main__":
     units_in_ring = pd.read_csv(UNITS_FILENAME)
 
     ips_to_ping = units_in_ring[units_in_ring['Type'] == 'BH']['IP'].tolist()
+    cw_ips = units_in_ring[(units_in_ring['Type'] == 'BH') & (units_in_ring['Direction'] == 'CW')]['IP'].tolist()
+    acw_ips = units_in_ring[(units_in_ring['Type'] == 'BH') & (units_in_ring['Direction'] == 'ACW')]['IP'].tolist()
+
 
     while True:
         print('Pinging units...')
@@ -73,10 +87,32 @@ if __name__ == "__main__":
 
         if all_alive:
             print('All units alive.')
+
         else:
+            # at least one IP is not connected
             not_connected_ips = [ip for ip, is_alive in results if not is_alive]
             print('Not connected IPs:')
             print(not_connected_ips)
+
+            # check the unconnected side
+            if not_connected_ips[0] in cw_ips:
+                unconnected_direction = 'CW'
+                first_unconnected_ip = find_first_unconnected_ip(not_connected_ips, cw_ips)
+                last_connected_ip = find_last_connected_ip(first_unconnected_ip, cw_ips)
+            else:
+                unconnected_direction = 'ACW'
+                first_unconnected_ip = find_first_unconnected_ip(not_connected_ips, acw_ips)
+                last_connected_ip = find_last_connected_ip(first_unconnected_ip, acw_ips)
+
+            print(f'Unconnected direction: {unconnected_direction}')
+            print(f'First unconnected IP: {first_unconnected_ip}')
+
+            # check the connection type of the last connected unit
+            connection_to_the_next_unit = units_in_ring[units_in_ring["IP"] == last_connected_ip]['ConnectionToNextRadio'].values[0]
+            if connection_to_the_next_unit == 'rf':
+                print(f'Connection to the next unit is RF. Need to turn on ALIGNMENT of {last_connected_ip}')
+            else:
+                print(f'Connection to the next unit is Ethernet. Need to turn down {connection_to_the_next_unit} of {last_connected_ip}')
 
         print(f'Sleeping for {DELAY_BETWEEN_PING_TEST_SEC} seconds.')
         time.sleep(DELAY_BETWEEN_PING_TEST_SEC)
