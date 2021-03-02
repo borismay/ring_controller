@@ -1,4 +1,4 @@
-from siklu_api import *
+# from siklu_api import *
 from pythonping import ping
 
 from multiprocessing import Pool
