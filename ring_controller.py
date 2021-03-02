@@ -100,8 +100,11 @@ if __name__ == "__main__":
                 results = ping_all_units(ips_to_ping)
                 all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
                 if all_alive:
-                    print('All units reconnected. Back to normal.')
-                    continue
+                    break
+
+            if all_alive:
+                print('All units reconnected. Back to normal.')
+                continue
 
             print(f'{N_CONSECUTIVE_PINGS_LOST} pings lost. Need to activate RPL.')
             not_connected_ips = [ip for ip, is_alive in results if not is_alive]
