@@ -13,8 +13,18 @@ except ImportError:
     from ConfigParser import ConfigParser  # ver. < 3.0
 
 
+PING_PACKETS = 1
+PING_TIMEOUT_SEC = 3
+PING_PACKET_SIZE_BYTES = 1
+DELAY_BETWEEN_PING_TEST_SEC = 5
+N_CONSECUTIVE_PINGS_LOST = 4
+EXIT_ON_FAULT = True
+UNITS_FILENAME = r'ring_controller_ips.csv'
+
+
+
 class UnitPing:
-    def __init__(self, ip, ping_packets=1, ping_timeout_sec=3, ping_packet_size_bytes=1):
+    def __init__(self, ip, ping_packets=PING_PACKETS, ping_timeout_sec=PING_TIMEOUT_SEC, ping_packet_size_bytes=PING_PACKET_SIZE_BYTES):
         self.ip = ip
         self.ping_packets = ping_packets
         self.ping_timeout_sec = ping_timeout_sec
@@ -67,19 +77,11 @@ def find_last_connected_ip(unconnected_ip, all_ips_ordered):
 
 
 if __name__ == "__main__":
-    PING_PACKETS = 1
-    PING_TIMEOUT_SEC = 3
-    PING_PACKET_SIZE_BYTES = 1
-    DELAY_BETWEEN_PING_TEST_SEC = 5
-    N_CONSECUTIVE_PINGS_LOST = 4
-
-    UNITS_FILENAME = r'ring_controller_ips.csv'
     units_in_ring = pd.read_csv(UNITS_FILENAME)
 
     ips_to_ping = units_in_ring[units_in_ring['Type'] == 'BH']['IP'].tolist()
     cw_ips = units_in_ring[(units_in_ring['Type'] == 'BH') & (units_in_ring['Direction'] == 'CW')]['IP'].tolist()
     acw_ips = units_in_ring[(units_in_ring['Type'] == 'BH') & (units_in_ring['Direction'] == 'ACW')]['IP'].tolist()
-
 
     while True:
         print('Pinging units...')
@@ -123,6 +125,10 @@ if __name__ == "__main__":
                 print(f'Connection to the next unit is RF. Need to turn on ALIGNMENT of {last_connected_ip}')
             else:
                 print(f'Connection to the next unit is Ethernet. Need to turn down {connection_to_the_next_unit} of {last_connected_ip}')
+
+            if EXIT_ON_FAULT:
+                print('Exiting...')
+                break
 
         print(f'Sleeping for {DELAY_BETWEEN_PING_TEST_SEC} seconds.')
         time.sleep(DELAY_BETWEEN_PING_TEST_SEC)
