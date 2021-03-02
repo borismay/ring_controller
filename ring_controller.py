@@ -96,7 +96,7 @@ if __name__ == "__main__":
             # at least one IP is not connected
             # wait until there are N_CONSECUTIVE_PINGS_LOST
             for i in range(N_CONSECUTIVE_PINGS_LOST):
-                print(f'Checking ping {N_CONSECUTIVE_PINGS_LOST + 1}')
+                print(f'Checking ping {i + 1}')
                 all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
                 if all_alive:
                     print('All units reconnected. Back to normal.')
