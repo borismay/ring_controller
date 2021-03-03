@@ -19,6 +19,7 @@ PING_PACKET_SIZE_BYTES = 1
 DELAY_BETWEEN_PING_TEST_SEC = 5
 N_CONSECUTIVE_PINGS_LOST = 4
 WAIT_FOR_RF_SEC = 60
+WAIT_FOR_AGING_SEC = 5*60
 EXIT_ON_FAULT = True
 UNITS_FILENAME = r'ring_controller_ips.csv'
 
@@ -117,6 +118,17 @@ def is_rf_up(unit, timeout):
     return False
 
 
+def wait_for_connectivity(ips_to_ping, timeout):
+    print(f'Waiting for connectivity...')
+    connection_timeout = time.time() + timeout
+    while time.time() <= connection_timeout:
+        results = ping_all_units(ips_to_ping)
+        all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
+        if all_alive:
+            return results
+    return results
+
+
 if __name__ == "__main__":
     units_in_ring = pd.read_csv(UNITS_FILENAME)
 
@@ -192,12 +204,22 @@ if __name__ == "__main__":
             ]
             activate_rpl(rpl_activation_unit)
 
+            # wait for RF to come up
             if not is_rf_up(rpl_activation_unit, WAIT_FOR_RF_SEC):
                 print('RPL is not coming up. Exiting...')
                 break
 
-            print('RPL is up.')
+            results = wait_for_connectivity(ips_to_ping, WAIT_FOR_AGING_SEC)
+            all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
 
+            if all_alive:
+                print('All units alive.')
+            else:
+                not_connected_ips = [ip for ip, is_alive in results if not is_alive]
+                print('Not connected IPs:')
+                print(not_connected_ips)
+
+            print('RPL is up.')
 
             # exit if a fault was detected
             if EXIT_ON_FAULT:
