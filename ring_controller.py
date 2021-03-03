@@ -107,10 +107,10 @@ def disconnect_last_connected_unit(unit):
 def is_rf_up(unit, timeout):
     odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
     odu.connect()
-    print(f'Waiting secs for RF to come up...')
+    print(f'Waiting for RF to come up...')
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
-        if odu.ShowRFStatus() == 'up':
+        if ShowRFStatus(odu).parse() == 'up':
             return True
     return False
 
