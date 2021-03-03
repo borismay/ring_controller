@@ -283,6 +283,12 @@ class ShowRF(SikluCommandParserBase):
                   ]
 
 
+class ShowRFStatus(SikluCommandParserBase):
+    cmd = 'show rf operational'
+    cmd_params = [SikluCommandParam('rf_operational', '', r"rf operational\s+: (.+)\n"),
+                  ]
+
+
 class ShowRFDebug(SikluCommandParserBase):
     cmd = 'show rf-debug'
     cmd_params = [SikluCommandParam('cinr_low', '', r"rf-debug cinr-low\s+: (.+)\n"),

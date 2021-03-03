@@ -1,4 +1,4 @@
-# from siklu_api import *
+from siklu_api import *
 from pythonping import ping
 
 from multiprocessing import Pool
@@ -18,6 +18,7 @@ PING_TIMEOUT_SEC = 3
 PING_PACKET_SIZE_BYTES = 1
 DELAY_BETWEEN_PING_TEST_SEC = 5
 N_CONSECUTIVE_PINGS_LOST = 4
+WAIT_FOR_RF_SEC = 60
 EXIT_ON_FAULT = True
 UNITS_FILENAME = r'ring_controller_ips.csv'
 
@@ -68,7 +69,11 @@ def activate_rpl(unit):
     command = unit['ProtectionCommand'].values[0]
     print(f'Activating RPL on {rpl_ip}')
     print(f'Executing: {command}')
-    return
+    unit = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+    unit.connect()
+    status = unit.send_command(unit['ProtectionCommand'].values[0])
+
+    return status
 
 
 def disconnect_last_connected_unit(unit):
@@ -84,7 +89,22 @@ def disconnect_last_connected_unit(unit):
             f'Connection to the next unit is Ethernet. Need to turn down {connection_to_the_next_unit} of {last_connected_ip}')
 
     print(f'Executing: {command}')
-    return
+    unit = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+    unit.connect()
+    status = unit.send_command(unit['ProtectionCommand'].values[0])
+
+    return status
+
+
+def is_rf_up(unit, timeout):
+    unit = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+    unit.connect()
+    print(f'Waiting secs for RF to come up...')
+    connection_timeout = time.time() + timeout
+    while time.time() <= connection_timeout:
+        if unit.ShowRFStatus() == 'up':
+            return True
+    return False
 
 
 if __name__ == "__main__":
@@ -131,12 +151,19 @@ if __name__ == "__main__":
                 # if the disconnect is on the CW side, the RPL should be activated on the ACW side
                 rpl_side = 'ACW'
                 first_unconnected_ip = find_first_unconnected_ip(not_connected_ips, cw_ips)
+                # if the first unit is unconnected, break
+                if first_unconnected_ip == cw_ips[0]:
+                    print(f'First unit is unreachable. Exiting...')
+                    break
                 last_connected_ip = find_last_connected_ip(first_unconnected_ip, cw_ips)
             elif (units_in_ring[units_in_ring["IP"].isin(not_connected_ips)]["Direction"] == 'ACW').all():
                 unconnected_direction = 'ACW'
                 # if the disconnect is on the ACW side, the RPL should be activated on the CW side
                 rpl_side = 'CW'
                 first_unconnected_ip = find_first_unconnected_ip(not_connected_ips, acw_ips)
+                if first_unconnected_ip == acw_ips[0]:
+                    print(f'First unit is unreachable. Exiting...')
+                    break
                 last_connected_ip = find_last_connected_ip(first_unconnected_ip, acw_ips)
             else:
                 print(f'Units disconnected on both directions. Exiting...')
@@ -154,6 +181,13 @@ if __name__ == "__main__":
                 (units_in_ring["Direction"] == rpl_side)
             ]
             activate_rpl(rpl_activation_unit)
+
+            if not is_rf_up(rpl_activation_unit, WAIT_FOR_RF_SEC):
+                print('RPL is not coming up. Exiting...')
+                break
+
+            print('RPL is up.')
+
 
             # exit if a fault was detected
             if EXIT_ON_FAULT:
