@@ -71,7 +71,11 @@ def activate_rpl(unit):
     print(f'Executing: {command}')
     odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
     odu.connect()
-    status = odu.send_command(unit['ProtectionCommand'].values[0])
+    if odu.connected:
+        status = odu.send_command(unit['ProtectionCommand'].values[0])
+    else:
+        print(f"Failed to connect to {unit['IP'].values[0]}")
+        return False
 
     return status
 
@@ -91,7 +95,11 @@ def disconnect_last_connected_unit(unit):
     print(f'Executing: {command}')
     odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
     odu.connect()
-    status = odu.send_command(unit['ProtectionCommand'].values[0])
+    if odu.connected:
+        status = odu.send_command(unit['ProtectionCommand'].values[0])
+    else:
+        print(f"Failed to connect to {unit['IP'].values[0]}")
+        return False
 
     return status
 
