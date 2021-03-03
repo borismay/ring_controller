@@ -69,9 +69,9 @@ def activate_rpl(unit):
     command = unit['ProtectionCommand'].values[0]
     print(f'Activating RPL on {rpl_ip}')
     print(f'Executing: {command}')
-    unit = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
-    unit.connect()
-    status = unit.send_command(unit['ProtectionCommand'].values[0])
+    odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+    odu.connect()
+    status = odu.send_command(unit['ProtectionCommand'].values[0])
 
     return status
 
@@ -89,20 +89,20 @@ def disconnect_last_connected_unit(unit):
             f'Connection to the next unit is Ethernet. Need to turn down {connection_to_the_next_unit} of {last_connected_ip}')
 
     print(f'Executing: {command}')
-    unit = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
-    unit.connect()
-    status = unit.send_command(unit['ProtectionCommand'].values[0])
+    odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+    odu.connect()
+    status = odu.send_command(unit['ProtectionCommand'].values[0])
 
     return status
 
 
 def is_rf_up(unit, timeout):
-    unit = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
-    unit.connect()
+    odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+    odu.connect()
     print(f'Waiting secs for RF to come up...')
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
-        if unit.ShowRFStatus() == 'up':
+        if odu.ShowRFStatus() == 'up':
             return True
     return False
 
