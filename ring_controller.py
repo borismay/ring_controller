@@ -68,7 +68,7 @@ def activate_rpl(unit):
     rpl_ip = unit['IP'].values[0]
     command = unit['ProtectionCommand'].values[0]
     print(f'Activating RPL on {rpl_ip}')
-    print(f'Executing: {command}')
+    print(f'Executing: {command} on {rpl_ip}')
     odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
     odu.connect()
     if odu.connected:
