@@ -112,6 +112,8 @@ def is_rf_up(unit, timeout):
     while time.time() <= connection_timeout:
         if ShowRFStatus(odu).parse() == 'up':
             return True
+        print(ShowRFStatus(odu).parse())
+        time.sleep(1)
     return False
 
 
