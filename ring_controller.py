@@ -7,6 +7,10 @@ from subprocess import call
 import pandas as pd
 import time
 
+import os
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+
 try:
     from configparser import ConfigParser
 except ImportError:
@@ -22,7 +26,22 @@ WAIT_FOR_RF_SEC = 60
 WAIT_FOR_AGING_SEC = 5*60
 EXIT_ON_FAULT = True
 UNITS_FILENAME = r'ring_controller_ips.csv'
+SLACK_CHANNEL_NAME = '#welink_ring_controller'
 
+# create an environment variable 'SLACK_BOT_TOKEN'
+client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
+
+
+def send_slack_message(msg):
+    try:
+        print(msg)
+        response = client.chat_postMessage(channel=SLACK_CHANNEL_NAME, text=msg)
+        assert response["message"]["text"] == msg
+    except SlackApiError as e:
+        # You will get a SlackApiError if "ok" is False
+        assert e.response["ok"] is False
+        assert e.response["error"]  # str like 'invalid_auth', 'channel_not_found'
+        print(f"Got an error: {e.response['error']}")
 
 
 class UnitPing:
@@ -68,14 +87,14 @@ def find_last_connected_ip(unconnected_ip, all_ips_ordered):
 def activate_rpl(unit):
     rpl_ip = unit['IP'].values[0]
     command = unit['ProtectionCommand'].values[0]
-    print(f'Activating RPL on {rpl_ip}')
-    print(f'Executing: {command} on {rpl_ip}')
+    send_slack_message(f'Activating RPL on {rpl_ip}')
+    send_slack_message(f'Executing: {command} on {rpl_ip}')
     odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
     odu.connect()
     if odu.connected:
         status = odu.send_command(unit['ProtectionCommand'].values[0])
     else:
-        print(f"Failed to connect to {unit['IP'].values[0]}")
+        send_slack_message(f"Failed to connect to {unit['IP'].values[0]}")
         return False
 
     return status
@@ -88,18 +107,18 @@ def disconnect_last_connected_unit(unit):
     last_connected_ip = unit['IP'].values[0]
 
     if connection_to_the_next_unit == 'rf':
-        print(f'Connection to the next unit is RF. Need to turn on ALIGNMENT of {last_connected_ip}')
+        send_slack_message(f'Connection to the next unit is RF. Need to turn on ALIGNMENT of {last_connected_ip}')
     else:
-        print(
+        send_slack_message(
             f'Connection to the next unit is Ethernet. Need to turn down {connection_to_the_next_unit} of {last_connected_ip}')
 
-    print(f'Executing: {command}')
+    send_slack_message(f'Executing: {command}')
     odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
     odu.connect()
     if odu.connected:
         status = odu.send_command(unit['ProtectionCommand'].values[0])
     else:
-        print(f"Failed to connect to {unit['IP'].values[0]}")
+        send_slack_message(f"Failed to connect to {unit['IP'].values[0]}")
         return False
 
     return status
@@ -108,18 +127,17 @@ def disconnect_last_connected_unit(unit):
 def is_rf_up(unit, timeout):
     odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
     odu.connect()
-    print(f'Waiting for RF to come up...')
+    send_slack_message(f'Waiting for RF to come up...')
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
         if ShowRFStatus(odu).parse()[0] == 'up':
             return True
-        print(ShowRFStatus(odu).parse()[0])
         time.sleep(1)
     return False
 
 
 def wait_for_connectivity(ips_to_ping, timeout):
-    print(f'Waiting for connectivity...')
+    send_slack_message(f'Waiting for connectivity...')
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
         results = ping_all_units(ips_to_ping)
@@ -137,35 +155,39 @@ if __name__ == "__main__":
     acw_ips = units_in_ring[(units_in_ring['Type'] == 'BH') & (units_in_ring['Direction'] == 'ACW')]['IP'].tolist()
 
     while True:
-        print('Pinging units...')
+        send_slack_message('Pinging units...')
         results = ping_all_units(ips_to_ping)
         all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
 
+        # all units are connected
         if all_alive:
-            print('All units alive.')
-            print(f'Sleeping for {DELAY_BETWEEN_PING_TEST_SEC} seconds.')
+            send_slack_message('All units alive.')
+            send_slack_message(f'Sleeping for {DELAY_BETWEEN_PING_TEST_SEC} seconds.')
             time.sleep(DELAY_BETWEEN_PING_TEST_SEC)
             continue
 
+        # we have a connectivity event
         else:
-            print('At least one unit is disconnected!')
+            send_slack_message('At least one unit is disconnected!')
             # at least one IP is not connected
             # wait until there are N_CONSECUTIVE_PINGS_LOST
             for i in range(N_CONSECUTIVE_PINGS_LOST):
-                print(f'Checking ping {i + 1}')
+                # send_slack_message(f'Checking ping {i + 1}')
                 results = ping_all_units(ips_to_ping)
                 all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
                 if all_alive:
                     break
 
+            # all units are back again
             if all_alive:
-                print('All units reconnected. Back to normal.')
+                send_slack_message('All units reconnected. Back to normal.')
                 continue
 
-            print(f'{N_CONSECUTIVE_PINGS_LOST} pings lost. Need to activate RPL.')
+            # we have a disconnection event!
+            send_slack_message(f'{N_CONSECUTIVE_PINGS_LOST} consecutive pings lost. Need to activate RPL.')
             not_connected_ips = [ip for ip, is_alive in results if not is_alive]
-            print('Not connected IPs:')
-            print(not_connected_ips)
+            send_slack_message('Not connected IPs:')
+            send_slack_message(not_connected_ips)
 
             # check the unconnected side
             if (units_in_ring[units_in_ring["IP"].isin(not_connected_ips)]["Direction"] == 'CW').all():
@@ -175,7 +197,7 @@ if __name__ == "__main__":
                 first_unconnected_ip = find_first_unconnected_ip(not_connected_ips, cw_ips)
                 # if the first unit is unconnected, break
                 if first_unconnected_ip == cw_ips[0]:
-                    print(f'First unit is unreachable. Exiting...')
+                    send_slack_message(f'First unit is unreachable. PoP failure. Exiting...')
                     break
                 last_connected_ip = find_last_connected_ip(first_unconnected_ip, cw_ips)
             elif (units_in_ring[units_in_ring["IP"].isin(not_connected_ips)]["Direction"] == 'ACW').all():
@@ -184,15 +206,15 @@ if __name__ == "__main__":
                 rpl_side = 'CW'
                 first_unconnected_ip = find_first_unconnected_ip(not_connected_ips, acw_ips)
                 if first_unconnected_ip == acw_ips[0]:
-                    print(f'First unit is unreachable. Exiting...')
+                    send_slack_message(f'First unit is unreachable. PoP failure. Exiting...')
                     break
                 last_connected_ip = find_last_connected_ip(first_unconnected_ip, acw_ips)
             else:
-                print(f'Units disconnected on both directions. Exiting...')
+                send_slack_message(f'Units disconnected on both directions. Exiting...')
                 break
 
-            print(f'Unconnected direction: {unconnected_direction}')
-            print(f'First unconnected IP: {first_unconnected_ip}')
+            send_slack_message(f'Unconnected direction: {unconnected_direction}')
+            send_slack_message(f'First unconnected IP: {first_unconnected_ip}')
 
             # disconnect the last connected unit
             disconnect_last_connected_unit(units_in_ring[units_in_ring["IP"] == last_connected_ip])
@@ -206,22 +228,23 @@ if __name__ == "__main__":
 
             # wait for RF to come up
             if not is_rf_up(rpl_activation_unit, WAIT_FOR_RF_SEC):
-                print('RPL is not coming up. Exiting...')
+                send_slack_message('RPL is not coming up. Exiting...')
                 break
 
+            # wait for Ethernet connectivity
             results = wait_for_connectivity(ips_to_ping, WAIT_FOR_AGING_SEC)
             all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
 
             if all_alive:
-                print('All units alive.')
+                send_slack_message('All units alive.')
             else:
                 not_connected_ips = [ip for ip, is_alive in results if not is_alive]
-                print('Not connected IPs:')
-                print(not_connected_ips)
+                send_slack_message('Not connected IPs:')
+                send_slack_message(not_connected_ips)
 
-            print('RPL is up.')
+            send_slack_message('RPL is up.')
 
             # exit if a fault was detected
             if EXIT_ON_FAULT:
-                print('Exiting...')
+                send_slack_message('Exiting...')
                 break
