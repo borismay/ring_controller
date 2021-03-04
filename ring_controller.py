@@ -90,17 +90,27 @@ def find_last_connected_ip(unconnected_ip, all_ips_ordered):
     return all_ips_ordered[last_connected_index]
 
 
-def activate_rpl(unit):
-    rpl_ip = unit['IP'].values[0]
-    command = unit['ProtectionCommand'].values[0]
-    send_slack_message(f'Activating RPL on {rpl_ip}')
-    send_slack_message(f'Executing: {command} on {rpl_ip}')
-    odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+def save_running_config(unit):
+    odu = SikluUnit(unit['IP'], unit['Username'], unit['Password'], debug=False)
     odu.connect()
     if odu.connected:
-        status = odu.send_command(unit['ProtectionCommand'].values[0])
+        odu.send_command('copy running-configuration startup-configuration')
+        send_slack_message(f"{unit['IP'].values[0]} running-configuration saved")
     else:
-        send_slack_message(f"Failed to connect to {unit['IP'].values[0]}")
+        send_slack_message(f"{unit['IP'].values[0]} failed to save running-configuration")
+
+
+def activate_rpl(unit):
+    rpl_ip = unit['IP']
+    command = unit['ProtectionCommand']
+    send_slack_message(f'Activating RPL on {rpl_ip}')
+    send_slack_message(f'Executing: {command} on {rpl_ip}')
+    odu = SikluUnit(unit['IP'], unit['Username'], unit['Password'], debug=False)
+    odu.connect()
+    if odu.connected:
+        status = odu.send_command(unit['ProtectionCommand'])
+    else:
+        send_slack_message(f"Failed to connect to {unit['IP']}")
         return False
 
     return status
@@ -108,9 +118,9 @@ def activate_rpl(unit):
 
 def disconnect_last_connected_unit(unit):
     # check the connection type of the last connected unit
-    connection_to_the_next_unit = unit['ConnectionToNextRadio'].values[0]
-    command = unit['ProtectionCommand'].values[0]
-    last_connected_ip = unit['IP'].values[0]
+    connection_to_the_next_unit = unit['ConnectionToNextRadio']
+    command = unit['ProtectionCommand']
+    last_connected_ip = unit['IP']
 
     if connection_to_the_next_unit == 'rf':
         send_slack_message(f'Connection to the next unit is RF. Need to turn on ALIGNMENT of {last_connected_ip}')
@@ -119,19 +129,19 @@ def disconnect_last_connected_unit(unit):
             f'Connection to the next unit is Ethernet. Need to turn down {connection_to_the_next_unit} of {last_connected_ip}')
 
     send_slack_message(f'Executing: {command}')
-    odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+    odu = SikluUnit(unit['IP'], unit['Username'], unit['Password'], debug=False)
     odu.connect()
     if odu.connected:
-        status = odu.send_command(unit['ProtectionCommand'].values[0])
+        status = odu.send_command(unit['ProtectionCommand'])
     else:
-        send_slack_message(f"Failed to connect to {unit['IP'].values[0]}")
+        send_slack_message(f"Failed to connect to {unit['IP']}")
         return False
 
     return status
 
 
 def is_rf_up(unit, timeout):
-    odu = SikluUnit(unit['IP'].values[0], unit['Username'].values[0], unit['Password'].values[0], debug=False)
+    odu = SikluUnit(unit['IP'], unit['Username'], unit['Password'], debug=False)
     odu.connect()
     send_slack_message(f'Waiting for RF to come up...')
     connection_timeout = time.time() + timeout
@@ -159,6 +169,10 @@ if __name__ == "__main__":
     ips_to_ping = units_in_ring[units_in_ring['Type'] == 'BH']['IP'].tolist()
     cw_ips = units_in_ring[(units_in_ring['Type'] == 'BH') & (units_in_ring['Direction'] == 'CW')]['IP'].tolist()
     acw_ips = units_in_ring[(units_in_ring['Type'] == 'BH') & (units_in_ring['Direction'] == 'ACW')]['IP'].tolist()
+
+    # save running configuration to startup configuration
+    for i, unit in units_in_ring[units_in_ring['IP'].isin(ips_to_ping)].iterrows():
+        save_running_config(unit)
 
     while True:
         send_slack_message('Pinging units...')
@@ -223,13 +237,13 @@ if __name__ == "__main__":
             send_slack_message(f'First unconnected IP: {first_unconnected_ip}')
 
             # disconnect the last connected unit
-            disconnect_last_connected_unit(units_in_ring[units_in_ring["IP"] == last_connected_ip])
+            disconnect_last_connected_unit(units_in_ring[units_in_ring["IP"] == last_connected_ip].squeeze())
 
             # activate RPL
             rpl_activation_unit = units_in_ring[
                 (units_in_ring["ConnectionToNextRadio"] == 'rpl') &
                 (units_in_ring["Direction"] == rpl_side)
-            ]
+            ].squeeze()
             activate_rpl(rpl_activation_unit)
 
             # wait for RF to come up
