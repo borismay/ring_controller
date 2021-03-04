@@ -95,9 +95,9 @@ def save_running_config(unit):
     odu.connect()
     if odu.connected:
         odu.send_command('copy running-configuration startup-configuration')
-        send_slack_message(f"{unit['IP'].values[0]} running-configuration saved")
+        send_slack_message(f"{unit['IP']} running-configuration saved")
     else:
-        send_slack_message(f"{unit['IP'].values[0]} failed to save running-configuration")
+        send_slack_message(f"{unit['IP']} failed to save running-configuration")
 
 
 def activate_rpl(unit):
