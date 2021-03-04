@@ -8,6 +8,8 @@ import pandas as pd
 import time
 
 import os
+import sys
+
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
@@ -42,6 +44,10 @@ def send_slack_message(msg):
         assert e.response["ok"] is False
         assert e.response["error"]  # str like 'invalid_auth', 'channel_not_found'
         print(f"Got an error: {e.response['error']}")
+    except AttributeError as e:
+        print(f"Got an AttributeError error")
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
 
 
 class UnitPing:
@@ -187,7 +193,7 @@ if __name__ == "__main__":
             send_slack_message(f'{N_CONSECUTIVE_PINGS_LOST} consecutive pings lost. Need to activate RPL.')
             not_connected_ips = [ip for ip, is_alive in results if not is_alive]
             send_slack_message('Not connected IPs:')
-            send_slack_message(not_connected_ips)
+            send_slack_message(",".join(not_connected_ips))
 
             # check the unconnected side
             if (units_in_ring[units_in_ring["IP"].isin(not_connected_ips)]["Direction"] == 'CW').all():
@@ -240,7 +246,7 @@ if __name__ == "__main__":
             else:
                 not_connected_ips = [ip for ip, is_alive in results if not is_alive]
                 send_slack_message('Not connected IPs:')
-                send_slack_message(not_connected_ips)
+                send_slack_message(",".join(not_connected_ips))
 
             send_slack_message('RPL is up.')
 
