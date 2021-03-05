@@ -194,6 +194,8 @@ def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
 
         ping_results = ping_all_units(ips_to_ping)
         all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
+        if all_alive:
+            return results
 
         not_connected_ips = [ip for ip, is_alive in ping_results if not is_alive]
         send_slack_message('Not connected IPs:')
@@ -204,8 +206,6 @@ def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
             if is_alive:
                 odus[ip].clear_fdb()
 
-        if all_alive:
-            return results
     return results
 
 
