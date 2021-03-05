@@ -1,3 +1,9 @@
+################################
+# TODO:
+# 1. RPL commands reception acknowledge
+# 2. clear FDB upon connection
+# 3. second timeout for connectivity after RPL event
+
 from siklu_api import *
 from pythonping import ping
 
@@ -20,10 +26,10 @@ except ImportError:
 
 
 PING_PACKETS = 1
-PING_TIMEOUT_SEC = 3
+PING_TIMEOUT_SEC = 1
 PING_PACKET_SIZE_BYTES = 1
 DELAY_BETWEEN_PING_TEST_SEC = 5
-N_CONSECUTIVE_PINGS_LOST = 4
+N_CONSECUTIVE_PINGS_LOST = 15
 WAIT_FOR_RF_SEC = 60
 WAIT_FOR_AGING_SEC = 5*60
 EXIT_ON_FAULT = True
@@ -59,11 +65,14 @@ class UnitPing:
         self.packet_loss = 0
         self.rtt_avg_ms = 0
 
-    def is_reachable(self):
+    def is_reachable(self, allow_errors=False):
         reply = ping(self.ip, count=self.ping_packets, timeout=self.ping_timeout_sec, size=self.ping_packet_size_bytes)
         self.packet_loss = reply.packet_loss
         self.rtt_avg_ms = reply.rtt_avg_ms
-        return self.packet_loss == 0
+        if not allow_errors:
+            return self.packet_loss == 0
+        else:
+            return self.packet_loss < 1.0
 
 
 def ping_unit(unit):
@@ -109,6 +118,7 @@ def activate_rpl(unit):
     odu.connect()
     if odu.connected:
         status = odu.send_command(unit['ProtectionCommand'])
+        odu.send_command('copy running-configuration startup-configuration')
     else:
         send_slack_message(f"Failed to connect to {unit['IP']}")
         return False
@@ -133,6 +143,7 @@ def disconnect_last_connected_unit(unit):
     odu.connect()
     if odu.connected:
         status = odu.send_command(unit['ProtectionCommand'])
+        odu.send_command('copy running-configuration startup-configuration')
     else:
         send_slack_message(f"Failed to connect to {unit['IP']}")
         return False
@@ -152,12 +163,34 @@ def is_rf_up(unit, timeout):
     return False
 
 
+class SikluUnitClearedFDB(SikluUnit):
+    fdb_cleared = false
+
+    def connect(self):
+        if self.connected:
+            return
+        SikluUnit.connect(self)
+
+    def clear_fdb(self):
+        self.connect()
+        if self.connected and not self.fdb_cleared:
+            self.send_command('clear fdb-table all all')
+            self.fdb_cleared = True
+
+
 def wait_for_connectivity(ips_to_ping, timeout):
     send_slack_message(f'Waiting for connectivity...')
+    odus = {ip: SikluUnitClearedFDB(ip) for ip in ips_to_ping}
+
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
-        results = ping_all_units(ips_to_ping)
+        ping_results = ping_all_units(ips_to_ping)
         all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
+        # clear FDB table of connected units
+        for ip, is_alive in ping_results:
+            if is_alive:
+                odus[ip].clear_fdb()
+
         if all_alive:
             return results
     return results
