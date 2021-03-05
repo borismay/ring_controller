@@ -178,9 +178,10 @@ class SikluUnitClearedFDB(SikluUnit):
             self.fdb_cleared = True
 
 
-def wait_for_connectivity(ips_to_ping, timeout):
+def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
     send_slack_message(f'Waiting for connectivity...')
-    odus = {ip: SikluUnitClearedFDB(ip) for ip in ips_to_ping}
+    for i, unit in units_in_ring[units_in_ring['IP'].isin(ips_to_ping)].iterrows():
+        odus = {unit['IP']: SikluUnitClearedFDB(unit['IP'], unit['Username'], unit['Password'], debug=False)}
 
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
@@ -285,7 +286,7 @@ if __name__ == "__main__":
                 break
 
             # wait for Ethernet connectivity
-            results = wait_for_connectivity(ips_to_ping, WAIT_FOR_AGING_SEC)
+            results = wait_for_connectivity(ips_to_ping, units_in_ring, WAIT_FOR_AGING_SEC)
             all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
 
             if all_alive:
