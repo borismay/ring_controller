@@ -1,9 +1,10 @@
 ################################
 # TODO:
-# 1. RPL commands reception acknowledge
-# 2. clear FDB upon connection
-# 3. second timeout for connectivity after RPL event
-# 4. concurrent execution of save_running_config()
+# * RPL commands reception acknowledge
+# * clear FDB upon connection
+# * second timeout for connectivity after RPL event
+# * concurrent execution of save_running_config()
+# * BUG: cli connection to an unlocked radio takes a lot of time. Save configuration doesn't work
 
 from siklu_api import *
 from pythonping import ping
@@ -183,9 +184,7 @@ class SikluUnitClearedFDB(SikluUnit):
 
 def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
     send_slack_message(f'Waiting for connectivity...')
-    odus = {}
-    for i, unit in units_in_ring[units_in_ring['IP'].isin(ips_to_ping)].iterrows():
-        odus[unit['IP']] = SikluUnitClearedFDB(unit['IP'], unit['Username'], unit['Password'], debug=False)
+    odus_fdb_cleared = {ip: False for ip in ips_to_ping}
 
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
@@ -193,20 +192,25 @@ def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
         send_slack_message(",".join(ips_to_ping))
 
         ping_results = ping_all_units(ips_to_ping)
+
+        # clear FDB table of connected units
+        for ip, is_alive in ping_results:
+            if is_alive and not odus_fdb_cleared[ip]:
+                unit = units_in_ring[units_in_ring["IP"] == ip].squeeze()
+                odu = SikluUnit(unit['IP'], unit['Username'], unit['Password'], debug=False)
+                odu.connect()
+                odu.send_command('clear fdb-table all all')
+                odus_fdb_cleared[ip] = True
+
         all_alive = sum([is_alive for ip, is_alive in ping_results]) == len(ips_to_ping)
         if all_alive:
-            return results
+            return ping_results
 
         not_connected_ips = [ip for ip, is_alive in ping_results if not is_alive]
         send_slack_message('Not connected IPs:')
         send_slack_message(",".join(not_connected_ips))
 
-        # clear FDB table of connected units
-        for ip, is_alive in ping_results:
-            if is_alive:
-                odus[ip].clear_fdb()
-
-    return results
+    return ping_results
 
 
 if __name__ == "__main__":
