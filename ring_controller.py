@@ -172,6 +172,7 @@ class SikluUnitClearedFDB(SikluUnit):
         if self.connected:
             return
         SikluUnit.connect(self)
+        self.fdb_cleared = False
 
     def clear_fdb(self):
         self.connect()
@@ -188,8 +189,16 @@ def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
 
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
+        send_slack_message('Pinging IPs:')
+        send_slack_message(",".join(ips_to_ping))
+
         ping_results = ping_all_units(ips_to_ping)
         all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
+
+        not_connected_ips = [ip for ip, is_alive in ping_results if not is_alive]
+        send_slack_message('Not connected IPs:')
+        send_slack_message(",".join(not_connected_ips))
+
         # clear FDB table of connected units
         for ip, is_alive in ping_results:
             if is_alive:
@@ -213,9 +222,11 @@ if __name__ == "__main__":
 
     execution_counter = 0
 
+    send_slack_message('Pinging units...')
+
     while True:
         execution_counter += 1
-        send_slack_message('Pinging units...')
+        # send_slack_message('Pinging units...')
         results = ping_all_units(ips_to_ping)
         all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
 
