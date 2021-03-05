@@ -193,7 +193,7 @@ def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
         send_slack_message(",".join(ips_to_ping))
 
         ping_results = ping_all_units(ips_to_ping)
-        all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
+        all_alive = sum([is_alive for ip, is_alive in ping_results]) == len(ips_to_ping)
         if all_alive:
             return results
 
