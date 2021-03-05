@@ -164,7 +164,7 @@ def is_rf_up(unit, timeout):
 
 
 class SikluUnitClearedFDB(SikluUnit):
-    fdb_cleared = false
+    fdb_cleared = False
 
     def connect(self):
         if self.connected:
