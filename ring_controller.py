@@ -1,7 +1,6 @@
 ################################
 # TODO:
 # * RPL commands reception acknowledge
-# * clear FDB upon connection
 # * second timeout for connectivity after RPL event
 # * concurrent execution of save_running_config()
 # * BUG: cli connection to an unlocked radio takes a lot of time. Save configuration doesn't work
@@ -164,22 +163,6 @@ def is_rf_up(unit, timeout):
             return True
         time.sleep(1)
     return False
-
-
-class SikluUnitClearedFDB(SikluUnit):
-    fdb_cleared = False
-
-    def connect(self):
-        if self.connected:
-            return
-        SikluUnit.connect(self)
-        self.fdb_cleared = False
-
-    def clear_fdb(self):
-        self.connect()
-        if self.connected and not self.fdb_cleared:
-            self.send_command('clear fdb-table all all')
-            self.fdb_cleared = True
 
 
 def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
