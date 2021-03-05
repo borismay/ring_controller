@@ -3,6 +3,7 @@
 # 1. RPL commands reception acknowledge
 # 2. clear FDB upon connection
 # 3. second timeout for connectivity after RPL event
+# 4. concurrent execution of save_running_config()
 
 from siklu_api import *
 from pythonping import ping
@@ -29,6 +30,7 @@ PING_PACKETS = 1
 PING_TIMEOUT_SEC = 1
 PING_PACKET_SIZE_BYTES = 1
 DELAY_BETWEEN_PING_TEST_SEC = 5
+KEEP_ALIVE_SEC = 3600
 N_CONSECUTIVE_PINGS_LOST = 15
 WAIT_FOR_RF_SEC = 60
 WAIT_FOR_AGING_SEC = 5*60
@@ -180,8 +182,9 @@ class SikluUnitClearedFDB(SikluUnit):
 
 def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
     send_slack_message(f'Waiting for connectivity...')
+    odus = {}
     for i, unit in units_in_ring[units_in_ring['IP'].isin(ips_to_ping)].iterrows():
-        odus = {unit['IP']: SikluUnitClearedFDB(unit['IP'], unit['Username'], unit['Password'], debug=False)}
+        odus[unit['IP']] = SikluUnitClearedFDB(unit['IP'], unit['Username'], unit['Password'], debug=False)
 
     connection_timeout = time.time() + timeout
     while time.time() <= connection_timeout:
@@ -208,15 +211,19 @@ if __name__ == "__main__":
     for i, unit in units_in_ring[units_in_ring['IP'].isin(ips_to_ping)].iterrows():
         save_running_config(unit)
 
+    execution_counter = 0
+
     while True:
+        execution_counter += 1
         send_slack_message('Pinging units...')
         results = ping_all_units(ips_to_ping)
         all_alive = sum([is_alive for ip, is_alive in results]) == len(ips_to_ping)
 
         # all units are connected
         if all_alive:
-            send_slack_message('All units alive.')
-            send_slack_message(f'Sleeping for {DELAY_BETWEEN_PING_TEST_SEC} seconds.')
+            if (execution_counter * DELAY_BETWEEN_PING_TEST_SEC) % KEEP_ALIVE_SEC == 0:
+                # send message every hour
+                send_slack_message(f'All units alive. Sleeping for {DELAY_BETWEEN_PING_TEST_SEC} seconds.')
             time.sleep(DELAY_BETWEEN_PING_TEST_SEC)
             continue
 
