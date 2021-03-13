@@ -275,14 +275,21 @@ if __name__ == "__main__":
             send_slack_message(f'Unconnected direction: {unconnected_direction}')
             send_slack_message(f'First unconnected IP: {first_unconnected_ip}')
 
-            # disconnect the last connected unit
-            disconnect_last_connected_unit(units_in_ring[units_in_ring["IP"] == last_connected_ip].squeeze())
-
-            # activate RPL
+            # RPL unit
             rpl_activation_unit = units_in_ring[
                 (units_in_ring["ConnectionToNextRadio"] == 'rpl') &
                 (units_in_ring["Direction"] == rpl_side)
             ].squeeze()
+
+            # if there is connectivity to the RPL unit, disconnect the last connected unit
+            # otherwise, do nothing, report an error and exit
+            if UnitPing(rpl_activation_unit).is_reachable():
+                disconnect_last_connected_unit(units_in_ring[units_in_ring["IP"] == last_connected_ip].squeeze())
+            else:
+                send_slack_message('RPL is unreachable. Leaving the network as is. Exiting...')
+                break
+
+            # activate RPL
             activate_rpl(rpl_activation_unit)
 
             # wait for RF to come up
