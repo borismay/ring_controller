@@ -197,7 +197,7 @@ def wait_for_connectivity(ips_to_ping, units_in_ring, timeout):
 
 
 if __name__ == "__main__":
-    units_in_ring = pd.read_csv(UNITS_FILENAME)
+    units_in_ring = pd.read_csv(UNITS_FILENAME, comment='#')
 
     ips_to_ping = units_in_ring[units_in_ring['Type'] == 'BH']['IP'].tolist()
     cw_ips = units_in_ring[(units_in_ring['Type'] == 'BH') & (units_in_ring['Direction'] == 'CW')]['IP'].tolist()
