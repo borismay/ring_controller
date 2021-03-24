@@ -1,10 +1,3 @@
-################################
-# TODO:
-# * RPL commands reception acknowledge
-# * second timeout for connectivity after RPL event
-# * concurrent execution of save_running_config()
-# * BUG: cli connection to an unlocked radio takes a lot of time. Save configuration doesn't work
-
 from siklu_api import *
 from pythonping import ping
 
