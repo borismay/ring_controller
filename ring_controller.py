@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
             # if there is connectivity to the RPL unit, disconnect the last connected unit
             # otherwise, do nothing, report an error and exit
-            if UnitPing(rpl_activation_unit).is_reachable():
+            if UnitPing(rpl_activation_unit["IP"]).is_reachable():
                 disconnect_last_connected_unit(units_in_ring[units_in_ring["IP"] == last_connected_ip].squeeze())
             else:
                 send_slack_message('RPL is unreachable. Leaving the network as is. Exiting...')
